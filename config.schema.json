@@ -54,7 +54,7 @@
       "pollIntervalMinutes": {
         "title": "Poll Interval (minutes)",
         "type": "integer",
-        "default": 30,
+        "default": 15,
         "minimum": 5,
         "description": "How often to refresh cached vehicle status. Keep this conservative — the EU API is rate limited (~200 calls/day)."
       },

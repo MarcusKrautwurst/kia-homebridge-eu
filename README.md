@@ -53,7 +53,7 @@ Configure through the Homebridge UI, or add a platform block to `config.json`:
   "pin": "1234",
   "language": "en",
   "vehicleIndex": 0,
-  "pollIntervalMinutes": 30,
+  "pollIntervalMinutes": 15,
   "showLock": true,
   "showClimate": true,
   "showStatus": true,
@@ -107,7 +107,7 @@ status repeatedly can drain its 12V battery. This plugin:
 - polls **cached** server status (does not wake the car) on the configured interval;
 - only forces a live refresh immediately after you issue a lock/climate command.
 
-Keep `pollIntervalMinutes` conservative (the default is 30).
+Keep `pollIntervalMinutes` conservative (the default is 15).
 
 ## Authentication notes
 

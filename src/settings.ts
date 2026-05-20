@@ -1,7 +1,7 @@
 export const PLATFORM_NAME = 'KiaConnectEU';
 export const PLUGIN_NAME = 'homebridge-kia-eu';
 
-export const DEFAULT_POLL_INTERVAL_MINUTES = 30;
+export const DEFAULT_POLL_INTERVAL_MINUTES = 15;
 export const MIN_POLL_INTERVAL_MINUTES = 5;
 
 // bluelinky EU defaults

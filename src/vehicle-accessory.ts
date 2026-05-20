@@ -298,19 +298,24 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
     this.commandsInFlight.add('lock');
 
     try {
-      const actionId = shouldLock
-        ? await this.options.apiClient.lockDoors(this.options.vehicleKey)
-        : await this.options.apiClient.unlockDoors(this.options.vehicleKey);
-
-      if (actionId) {
-        const success = await this.options.apiClient.waitForAction(this.options.vehicleKey, actionId);
-        if (!success) {
-          throw new Error('Door lock/unlock command did not complete successfully');
-        }
+      if (shouldLock) {
+        await this.options.apiClient.lockDoors(this.options.vehicleKey);
+      } else {
+        await this.options.apiClient.unlockDoors(this.options.vehicleKey);
       }
 
-      const state = await this.options.apiClient.getVehicleStatus(this.options.vehicleKey, true);
-      this.updateState(state);
+      // Command accepted. Optimistically reflect the new lock state in HomeKit; the
+      // next poll confirms it. We deliberately don't force a live status read here —
+      // the EU API rejects a status poll right after a command as a duplicate request.
+      const lockService = this.services.get('lock');
+      if (lockService) {
+        lockService.updateCharacteristic(
+          Characteristic.LockCurrentState,
+          shouldLock
+            ? Characteristic.LockCurrentState.SECURED
+            : Characteristic.LockCurrentState.UNSECURED,
+        );
+      }
     } catch (e) {
       this.platform.log.error('Door lock/unlock failed:', e);
 
@@ -345,21 +350,20 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
     this.commandsInFlight.add('climate');
 
     try {
-      const actionId = shouldStart
-        ? await this.options.apiClient.startClimate(this.options.vehicleKey, {
+      if (shouldStart) {
+        await this.options.apiClient.startClimate(this.options.vehicleKey, {
           temperature: this.options.climateTemperature ?? DEFAULT_CLIMATE_TEMP_C,
-        })
-        : await this.options.apiClient.stopClimate(this.options.vehicleKey);
-
-      if (actionId) {
-        const success = await this.options.apiClient.waitForAction(this.options.vehicleKey, actionId);
-        if (!success) {
-          throw new Error('Climate command did not complete successfully');
-        }
+        });
+      } else {
+        await this.options.apiClient.stopClimate(this.options.vehicleKey);
       }
 
-      const state = await this.options.apiClient.getVehicleStatus(this.options.vehicleKey, true);
-      this.updateState(state);
+      // Command accepted. Optimistically reflect the new climate state; the next
+      // poll confirms it. No immediate live status read (EU rejects it as duplicate).
+      const climateService = this.services.get('climate');
+      if (climateService) {
+        climateService.updateCharacteristic(this.platform.Characteristic.On, shouldStart);
+      }
     } catch (e) {
       this.platform.log.error('Climate control failed:', e);
 

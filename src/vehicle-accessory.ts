@@ -11,9 +11,16 @@ import type { AccessoryCategory } from './accessory-layout.js';
 import { DEFAULT_CLIMATE_TEMP_C, LOW_BATTERY_THRESHOLD } from './settings.js';
 
 type CommandKey = 'lock' | 'climate';
-type ServiceKey = CommandKey | 'fuel' | 'fuel-low' | 'temperature' | 'engine'
+type ServiceKey = CommandKey | 'fuel-low' | 'engine'
   | 'door-fl' | 'door-fr' | 'door-rl' | 'door-rr' | 'hood' | 'trunk'
   | 'window-fl' | 'window-fr' | 'window-rl' | 'window-rr' | 'tire' | 'battery';
+
+// Subtypes from older versions that the EU API can't populate (no ambient temp,
+// no fuel %). Removed on setup so stale, always-empty tiles disappear on upgrade.
+const LEGACY_SUBTYPES: readonly { type: 'HumiditySensor' | 'TemperatureSensor'; subtype: string }[] = [
+  { type: 'HumiditySensor', subtype: 'fuel' },
+  { type: 'TemperatureSensor', subtype: 'temperature' },
+];
 
 export interface VehicleAccessoryInstance {
   updateState(state: VehicleState): void;
@@ -22,7 +29,7 @@ export interface VehicleAccessoryInstance {
 const CATEGORY_SERVICE_KEYS: Record<AccessoryCategory, readonly ServiceKey[]> = {
   lock: ['lock'],
   climate: ['climate'],
-  status: ['fuel', 'fuel-low', 'temperature', 'engine', 'tire'],
+  status: ['fuel-low', 'engine', 'tire'],
   body: ['door-fl', 'door-fr', 'door-rl', 'door-rr', 'hood', 'trunk', 'window-fl', 'window-fr', 'window-rl', 'window-rr'],
   battery: ['battery'],
 };
@@ -75,6 +82,11 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       .setCharacteristic(Characteristic.Model, this.vehicle.model)
       .setCharacteristic(Characteristic.SerialNumber, this.vehicle.vin);
 
+    // Drop services that older versions created but the EU API can never fill.
+    for (const legacy of LEGACY_SUBTYPES) {
+      this.removeServiceBySubtype(Service[legacy.type], legacy.subtype);
+    }
+
     for (const category of Object.keys(CATEGORY_SERVICE_KEYS) as AccessoryCategory[]) {
       if (!this.categories.has(category)) {
         for (const subtype of CATEGORY_SERVICE_KEYS[category]) {
@@ -99,9 +111,7 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
     }
 
     if (this.categories.has('status')) {
-      this.services.set('fuel', this.getOrAddService(Service.HumiditySensor, 'Fuel', 'fuel'));
       this.services.set('fuel-low', this.getOrAddService(Service.LeakSensor, 'Low Fuel Warning', 'fuel-low'));
-      this.services.set('temperature', this.getOrAddService(Service.TemperatureSensor, 'Outside Temperature', 'temperature'));
       this.services.set('engine', this.getOrAddService(Service.OccupancySensor, 'Engine Running', 'engine'));
       this.services.set('tire', this.getOrAddService(Service.LeakSensor, 'Tire Pressure Warning', 'tire'));
     }
@@ -144,11 +154,24 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
     subtype: string,
   ): Service {
     const existing = this.accessory.getServiceById(serviceType, subtype);
-    if (existing) {
-      existing.setCharacteristic(this.platform.Characteristic.Name, name);
-      return existing;
+    const service = existing ?? this.accessory.addService(serviceType, name, subtype);
+    this.nameService(service, name);
+    return service;
+  }
+
+  /**
+   * Names a bundled service so the Apple Home app shows the per-service name
+   * instead of the accessory name. Home honours ConfiguredName (not Name) for
+   * tiles on a multi-service accessory; we set it once and then leave it so a
+   * user's manual rename is preserved across restarts.
+   */
+  private nameService(service: Service, name: string): void {
+    const { Characteristic } = this.platform;
+    service.setCharacteristic(Characteristic.Name, name);
+    if (!service.testCharacteristic(Characteristic.ConfiguredName)) {
+      service.addOptionalCharacteristic(Characteristic.ConfiguredName);
+      service.setCharacteristic(Characteristic.ConfiguredName, name);
     }
-    return this.accessory.addService(serviceType, name, subtype);
   }
 
   updateState(state: VehicleState): void {
@@ -174,11 +197,6 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       climateService.updateCharacteristic(Characteristic.On, state.airControlOn);
     }
 
-    const fuelService = this.services.get('fuel');
-    if (fuelService && state.fuelLevel !== null) {
-      fuelService.updateCharacteristic(Characteristic.CurrentRelativeHumidity, state.fuelLevel);
-    }
-
     const lowFuelService = this.services.get('fuel-low');
     if (lowFuelService) {
       lowFuelService.updateCharacteristic(
@@ -186,15 +204,6 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
         state.fuelLevelLow
           ? Characteristic.LeakDetected.LEAK_DETECTED
           : Characteristic.LeakDetected.LEAK_NOT_DETECTED,
-      );
-    }
-
-    const tempService = this.services.get('temperature');
-    if (tempService && state.outsideTemperature !== null) {
-      // The EU API reports Celsius, which HomeKit also expects.
-      tempService.updateCharacteristic(
-        Characteristic.CurrentTemperature,
-        state.outsideTemperature,
       );
     }
 
@@ -266,13 +275,9 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       return Service.LockMechanism;
     case 'climate':
       return Service.Switch;
-    case 'fuel':
-      return Service.HumiditySensor;
     case 'fuel-low':
     case 'tire':
       return Service.LeakSensor;
-    case 'temperature':
-      return Service.TemperatureSensor;
     case 'engine':
       return Service.OccupancySensor;
     case 'battery':

@@ -85,19 +85,24 @@ Up to five accessories are created per vehicle:
 - `${vehicleName} Lock` — `LockMechanism`
 - `${vehicleName} Climate` — `Switch`
 - `${vehicleName} Status` — `LeakSensor` (low fuel), `OccupancySensor` (engine),
-  `LeakSensor` (tire pressure), plus `HumiditySensor`/`TemperatureSensor` placeholders
+  `LeakSensor` (tire pressure)
 - `${vehicleName} Body` — `ContactSensor` services for doors, windows, hood, trunk
 - `${vehicleName} Battery` — `Battery` (EV charge + charging state, or 12V battery)
 
 ## EU API limitations
 
-The European API does **not** expose a few things the US API does:
+The European API does **not** expose a few things the US API does, so these are
+intentionally **not** shown (they would always read empty):
 
-- **Ambient outside temperature** — the temperature sensor will not report a value.
-- **Fuel percentage** — only a low-fuel warning and distance-to-empty are available.
+- **Ambient outside temperature** — no temperature sensor is created.
+- **Fuel percentage** — no fuel-level sensor; only a low-fuel warning is exposed.
 
 For EVs, the battery service reports the high-voltage traction battery's charge and
 whether it is charging.
+
+> ℹ️ HomeKit bundles each accessory's services into one tile group. The plugin sets
+> each service's `ConfiguredName` so the Apple Home app shows individual names (e.g.
+> "Front Left Door", "Tire Pressure Warning") rather than repeating the accessory name.
 
 ## Rate limiting & battery care
 

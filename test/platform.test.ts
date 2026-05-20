@@ -26,6 +26,14 @@ class MockService {
   updateCharacteristic(): this {
     return this;
   }
+
+  testCharacteristic(): boolean {
+    return false;
+  }
+
+  addOptionalCharacteristic(): void {
+    // no-op for tests
+  }
 }
 
 class MockPlatformAccessory {
@@ -81,6 +89,7 @@ function makeApi() {
         Model: 'Model',
         SerialNumber: 'SerialNumber',
         Name: 'Name',
+        ConfiguredName: 'ConfiguredName',
         LockTargetState: { SECURED: 1, UNSECURED: 0 },
         LockCurrentState: { SECURED: 1, UNSECURED: 0 },
         On: 'On',

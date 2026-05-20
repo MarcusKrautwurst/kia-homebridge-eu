@@ -50,6 +50,14 @@ class FakeService {
     this.characteristicHandles.set(characteristic, handle);
     return handle;
   }
+
+  testCharacteristic(characteristic: string): boolean {
+    return this.updates.has(characteristic);
+  }
+
+  addOptionalCharacteristic(): void {
+    // no-op for tests
+  }
 }
 
 class FakeAccessory {
@@ -95,6 +103,7 @@ function makePlatform() {
       Model: 'Model',
       SerialNumber: 'SerialNumber',
       Name: 'Name',
+      ConfiguredName: 'ConfiguredName',
       LockTargetState: { SECURED: 1, UNSECURED: 0 },
       LockCurrentState: { SECURED: 1, UNSECURED: 0 },
       On: 'On',
@@ -210,14 +219,28 @@ describe('VehicleAccessory', () => {
 
     const statusAccessory = new FakeAccessory();
     new StatusAccessory(platform, statusAccessory as never, vehicle);
-    expect(statusAccessory.getServiceById('HumiditySensor', 'fuel')).toBeDefined();
+    expect(statusAccessory.getServiceById('LeakSensor', 'fuel-low')).toBeDefined();
     expect(statusAccessory.getServiceById('LeakSensor', 'tire')).toBeDefined();
+    expect(statusAccessory.getServiceById('OccupancySensor', 'engine')).toBeDefined();
     expect(statusAccessory.getServiceById('ContactSensor', 'door-fl')).toBeUndefined();
+    // Outside temperature and fuel % are not provided by the EU API, so they are not exposed.
+    expect(statusAccessory.getServiceById('HumiditySensor', 'fuel')).toBeUndefined();
+    expect(statusAccessory.getServiceById('TemperatureSensor', 'temperature')).toBeUndefined();
 
     const bodyAccessory = new FakeAccessory();
     new BodyAccessory(platform, bodyAccessory as never, vehicle);
     expect(bodyAccessory.getServiceById('ContactSensor', 'door-fl')).toBeDefined();
-    expect(bodyAccessory.getServiceById('HumiditySensor', 'fuel')).toBeUndefined();
+    expect(bodyAccessory.getServiceById('LeakSensor', 'fuel-low')).toBeUndefined();
+  });
+
+  it('names bundled services with ConfiguredName so Apple Home shows per-service names', () => {
+    const platform = makePlatform();
+    const accessory = new FakeAccessory();
+    new StatusAccessory(platform, accessory as never, vehicle);
+
+    const lowFuel = accessory.getServiceById('LeakSensor', 'fuel-low');
+    expect(lowFuel?.updates.get('ConfiguredName')).toBe('Low Fuel Warning');
+    expect(lowFuel?.updates.get('Name')).toBe('Low Fuel Warning');
   });
 
   it('keeps the battery only on the dedicated grouped battery accessory', () => {
@@ -230,17 +253,6 @@ describe('VehicleAccessory', () => {
 
     expect(statusAccessory.getServiceById('Battery', 'battery')).toBeUndefined();
     expect(batteryAccessory.getServiceById('Battery', 'battery')?.name).toBe('Battery');
-  });
-
-  it('passes outside temperature through unchanged (EU reports Celsius)', () => {
-    const platform = makePlatform();
-    const accessory = new FakeAccessory();
-    const statusInstance = new StatusAccessory(platform, accessory as never, vehicle);
-
-    statusInstance.updateState(makeState({ outsideTemperature: 17 }));
-
-    const tempService = accessory.getServiceById('TemperatureSensor', 'temperature');
-    expect(tempService?.updates.get('CurrentTemperature')).toBe(17);
   });
 
   it('prefers the EV battery and reports charging state', () => {
@@ -269,25 +281,6 @@ describe('VehicleAccessory', () => {
     const batteryService = accessory.getServiceById('Battery', 'battery');
     expect(batteryService?.updates.get('BatteryLevel')).toBe(55);
     expect(batteryService?.updates.get(platform.Characteristic.ChargingState)).toBe(0);
-  });
-
-  it('does not overwrite fuel characteristics when values are unknown', () => {
-    const platform = makePlatform();
-    const accessory = new FakeAccessory();
-
-    const statusInstance = new StatusAccessory(
-      platform,
-      accessory as never,
-      vehicle,
-    );
-
-    statusInstance.updateState(makeState());
-    statusInstance.updateState(makeState({
-      fuelLevel: null,
-    }));
-
-    const fuelService = accessory.getServiceById('HumiditySensor', 'fuel');
-    expect(fuelService?.updates.get('CurrentRelativeHumidity')).toBe(55);
   });
 
   it('exposes low fuel and tire warnings as leak sensors', () => {

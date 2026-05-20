@@ -1,0 +1,127 @@
+{
+  "pluginAlias": "KiaConnectEU",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Kia Connect (UVO) for Europe, powered by [bluelinky](https://github.com/Hacksore/bluelinky). Requires an active Kia Connect subscription. Your account PIN is needed for remote commands.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Kia Connect EU",
+        "required": true
+      },
+      "username": {
+        "title": "Kia Connect Email",
+        "type": "string",
+        "format": "email",
+        "required": true
+      },
+      "password": {
+        "title": "Kia Connect Password",
+        "type": "string",
+        "required": true
+      },
+      "pin": {
+        "title": "Kia Connect PIN",
+        "type": "string",
+        "required": true,
+        "pattern": "^[0-9]{4,6}$",
+        "description": "Numeric PIN from the Kia Connect app. Required to authorise remote commands."
+      },
+      "language": {
+        "title": "Language",
+        "type": "string",
+        "default": "en",
+        "oneOf": [
+          { "title": "English", "enum": ["en"] },
+          { "title": "Deutsch", "enum": ["de"] },
+          { "title": "Français", "enum": ["fr"] },
+          { "title": "Italiano", "enum": ["it"] },
+          { "title": "Español", "enum": ["es"] },
+          { "title": "Nederlands", "enum": ["nl"] },
+          { "title": "Polski", "enum": ["pl"] },
+          { "title": "Čeština", "enum": ["cs"] },
+          { "title": "Dansk", "enum": ["da"] },
+          { "title": "Suomi", "enum": ["fi"] },
+          { "title": "Magyar", "enum": ["hu"] },
+          { "title": "Norsk", "enum": ["no"] },
+          { "title": "Slovenčina", "enum": ["sk"] },
+          { "title": "Svenska", "enum": ["sv"] }
+        ]
+      },
+      "pollIntervalMinutes": {
+        "title": "Poll Interval (minutes)",
+        "type": "integer",
+        "default": 30,
+        "minimum": 5,
+        "description": "How often to refresh cached vehicle status. Keep this conservative — the EU API is rate limited (~200 calls/day)."
+      },
+      "showLock": {
+        "title": "Show Door Lock",
+        "type": "boolean",
+        "default": true
+      },
+      "showClimate": {
+        "title": "Show Remote Climate",
+        "type": "boolean",
+        "default": true
+      },
+      "showStatus": {
+        "title": "Show Vehicle Sensors",
+        "type": "boolean",
+        "default": true,
+        "description": "Low fuel warning, engine/ignition state, and tire pressure. (Outside temperature and fuel percentage are not provided by the EU API.)"
+      },
+      "showBody": {
+        "title": "Show Body Sensors",
+        "type": "boolean",
+        "default": false,
+        "description": "Expose door, window, hood, and trunk sensors."
+      },
+      "showBattery": {
+        "title": "Show Battery",
+        "type": "boolean",
+        "default": true,
+        "description": "EV high-voltage battery charge and charging state where available, otherwise the 12V battery."
+      },
+      "climateTemperature": {
+        "title": "Remote Climate Temperature (°C)",
+        "type": "integer",
+        "default": 21,
+        "minimum": 14,
+        "maximum": 30,
+        "description": "Target temperature when starting climate control remotely."
+      },
+      "vehicleIndex": {
+        "title": "Vehicle Index",
+        "type": "integer",
+        "default": 0,
+        "minimum": 0,
+        "description": "If you have multiple vehicles, specify the index (0 = first vehicle)"
+      }
+    }
+  },
+  "layout": [
+    "username",
+    "password",
+    "pin",
+    "language",
+    { "key": "pollIntervalMinutes" },
+    { "key": "vehicleIndex" },
+    {
+      "type": "fieldset",
+      "title": "Accessory Visibility",
+      "expandable": true,
+      "items": [
+        "showLock",
+        "showClimate",
+        "showStatus",
+        "showBody",
+        "showBattery"
+      ]
+    },
+    { "key": "climateTemperature" }
+  ]
+}

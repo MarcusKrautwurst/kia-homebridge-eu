@@ -15,7 +15,14 @@ const schema = JSON.parse(
       format?: string;
     }>;
   };
+  layout: Array<string | { key?: string; type?: string }>;
 };
+
+function layoutEntry(key: string): { key?: string; type?: string } | undefined {
+  return schema.layout.find(
+    (item): item is { key?: string; type?: string } => typeof item === 'object' && item.key === key,
+  );
+}
 
 describe('config.schema.json', () => {
   it('uses the EU plugin alias', () => {
@@ -34,6 +41,9 @@ describe('config.schema.json', () => {
     const properties = schema.schema.properties;
     expect(properties.password.format).toBe('password');
     expect(properties.pin.format).toBe('password');
+    // The form renderer honours the layout type, so mask there too.
+    expect(layoutEntry('password')?.type).toBe('password');
+    expect(layoutEntry('pin')?.type).toBe('password');
   });
 
   it('includes category visibility fields with the documented defaults', () => {

@@ -113,8 +113,8 @@
   },
   "layout": [
     "username",
-    "password",
-    "pin",
+    { "key": "password", "type": "password" },
+    { "key": "pin", "type": "password" },
     "language",
     { "key": "pollIntervalMinutes" },
     { "key": "vehicleIndex" },

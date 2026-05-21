@@ -21,12 +21,14 @@
       "password": {
         "title": "Kia Connect Password",
         "type": "string",
-        "required": true
+        "required": true,
+        "format": "password"
       },
       "pin": {
         "title": "Kia Connect PIN",
         "type": "string",
         "required": true,
+        "format": "password",
         "pattern": "^[0-9]{4,6}$",
         "description": "Numeric PIN from the Kia Connect app. Required to authorise remote commands."
       },

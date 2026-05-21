@@ -12,6 +12,7 @@ const schema = JSON.parse(
       pattern?: string;
       minimum?: number;
       maximum?: number;
+      format?: string;
     }>;
   };
 };
@@ -27,6 +28,12 @@ describe('config.schema.json', () => {
     expect(properties.password.required).toBe(true);
     expect(properties.pin.required).toBe(true);
     expect(properties.pin.pattern).toBe('^[0-9]{4,6}$');
+  });
+
+  it('masks the password and PIN fields', () => {
+    const properties = schema.schema.properties;
+    expect(properties.password.format).toBe('password');
+    expect(properties.pin.format).toBe('password');
   });
 
   it('includes category visibility fields with the documented defaults', () => {

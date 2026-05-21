@@ -4,6 +4,7 @@ import {
   BodyAccessory,
   ClimateAccessory,
   LockAccessory,
+  MileageAccessory,
   StatusAccessory,
 } from '../src/vehicle-accessory.js';
 import type { VehicleState } from '../src/kia/types.js';
@@ -97,6 +98,7 @@ function makePlatform() {
       OccupancySensor: 'OccupancySensor',
       ContactSensor: 'ContactSensor',
       LeakSensor: 'LeakSensor',
+      LightSensor: 'LightSensor',
     },
     Characteristic: {
       Manufacturer: 'Manufacturer',
@@ -118,6 +120,7 @@ function makePlatform() {
       },
       CurrentRelativeHumidity: 'CurrentRelativeHumidity',
       CurrentTemperature: 'CurrentTemperature',
+      CurrentAmbientLightLevel: 'CurrentAmbientLightLevel',
       OccupancyDetected: {
         OCCUPANCY_DETECTED: 1,
         OCCUPANCY_NOT_DETECTED: 0,
@@ -281,6 +284,18 @@ describe('VehicleAccessory', () => {
     const batteryService = accessory.getServiceById('Battery', 'battery');
     expect(batteryService?.updates.get('BatteryLevel')).toBe(55);
     expect(batteryService?.updates.get(platform.Characteristic.ChargingState)).toBe(0);
+  });
+
+  it('shows mileage as a light sensor reading', () => {
+    const platform = makePlatform();
+    const accessory = new FakeAccessory();
+    const mileage = new MileageAccessory(platform, accessory as never, vehicle);
+
+    mileage.updateState(makeState({ odometer: 12500 }));
+
+    const svc = accessory.getServiceById('LightSensor', 'mileage');
+    expect(svc?.name).toBe('Odometer');
+    expect(svc?.updates.get('CurrentAmbientLightLevel')).toBe(12500);
   });
 
   it('exposes low fuel and tire warnings as leak sensors', () => {

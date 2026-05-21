@@ -13,7 +13,12 @@ import { DEFAULT_CLIMATE_TEMP_C, LOW_BATTERY_THRESHOLD } from './settings.js';
 type CommandKey = 'lock' | 'climate';
 type ServiceKey = CommandKey | 'fuel-low' | 'engine'
   | 'door-fl' | 'door-fr' | 'door-rl' | 'door-rr' | 'hood' | 'trunk'
-  | 'window-fl' | 'window-fr' | 'window-rl' | 'window-rr' | 'tire' | 'battery';
+  | 'window-fl' | 'window-fr' | 'window-rl' | 'window-rr' | 'tire' | 'battery' | 'mileage';
+
+// HomeKit's ambient light level (used as a stand-in to display the odometer
+// number, since HomeKit has no mileage characteristic) is bounded to this range.
+const LIGHT_SENSOR_MIN = 0.0001;
+const LIGHT_SENSOR_MAX = 100000;
 
 // Subtypes from older versions that the EU API can't populate (no ambient temp,
 // no fuel %). Removed on setup so stale, always-empty tiles disappear on upgrade.
@@ -32,6 +37,7 @@ const CATEGORY_SERVICE_KEYS: Record<AccessoryCategory, readonly ServiceKey[]> = 
   status: ['fuel-low', 'engine', 'tire'],
   body: ['door-fl', 'door-fr', 'door-rl', 'door-rr', 'hood', 'trunk', 'window-fl', 'window-fr', 'window-rl', 'window-rr'],
   battery: ['battery'],
+  mileage: ['mileage'],
 };
 
 type BooleanStateKey = {
@@ -137,6 +143,10 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
 
     if (this.categories.has('battery')) {
       this.services.set('battery', this.getOrAddService(Service.Battery, 'Battery', 'battery'));
+    }
+
+    if (this.categories.has('mileage')) {
+      this.services.set('mileage', this.getOrAddService(Service.LightSensor, 'Odometer', 'mileage'));
     }
   }
 
@@ -252,6 +262,14 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
           : Characteristic.ChargingState.NOT_CHARGING,
       );
     }
+
+    // HomeKit has no odometer field, so the mileage (km) is surfaced through a
+    // light sensor's lux reading. Clamp to the characteristic's allowed range.
+    const mileageService = this.services.get('mileage');
+    if (mileageService && state.odometer !== null) {
+      const value = Math.min(Math.max(state.odometer, LIGHT_SENSOR_MIN), LIGHT_SENSOR_MAX);
+      mileageService.updateCharacteristic(Characteristic.CurrentAmbientLightLevel, value);
+    }
   }
 
   private updateContactSensor(subtype: ServiceKey, isOpen: boolean): void {
@@ -282,6 +300,8 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       return Service.OccupancySensor;
     case 'battery':
       return Service.Battery;
+    case 'mileage':
+      return Service.LightSensor;
     default:
       return Service.ContactSensor;
     }
@@ -450,6 +470,18 @@ export class BatteryAccessory extends ConfiguredAccessory {
   ) {
     super(platform, accessory, vehicle, {
       categories: ['battery'],
+    });
+  }
+}
+
+export class MileageAccessory extends ConfiguredAccessory {
+  constructor(
+    platform: KiaConnectPlatform,
+    accessory: PlatformAccessory,
+    vehicle: VehicleSummary,
+  ) {
+    super(platform, accessory, vehicle, {
+      categories: ['mileage'],
     });
   }
 }

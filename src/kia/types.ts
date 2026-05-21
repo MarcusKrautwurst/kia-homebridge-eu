@@ -15,6 +15,7 @@ export interface KiaConnectConfig extends PlatformConfig {
   showStatus?: boolean;
   showBody?: boolean;
   showBattery?: boolean;
+  showMileage?: boolean;
   /** Remote climate target temperature in Celsius. */
   climateTemperature?: number;
   vehicleIndex?: number;

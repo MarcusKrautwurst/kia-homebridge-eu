@@ -83,6 +83,7 @@ function makeApi() {
         OccupancySensor: 'OccupancySensor',
         ContactSensor: 'ContactSensor',
         LeakSensor: 'LeakSensor',
+        LightSensor: 'LightSensor',
       },
       Characteristic: {
         Manufacturer: 'Manufacturer',
@@ -104,6 +105,7 @@ function makeApi() {
         },
         CurrentRelativeHumidity: 'CurrentRelativeHumidity',
         CurrentTemperature: 'CurrentTemperature',
+        CurrentAmbientLightLevel: 'CurrentAmbientLightLevel',
         OccupancyDetected: {
           OCCUPANCY_DETECTED: 1,
           OCCUPANCY_NOT_DETECTED: 0,
@@ -199,6 +201,7 @@ function makePlatform(configOverrides: Record<string, unknown> = {}) {
   (platform as any).apiClient = {
     getVehicles: vi.fn().mockResolvedValue([makeVehicle()]),
     getVehicleStatus: vi.fn().mockResolvedValue(makeState()),
+    refreshOdometer: vi.fn().mockResolvedValue(12345),
     lockDoors: vi.fn(),
     unlockDoors: vi.fn(),
     startClimate: vi.fn(),
@@ -305,6 +308,7 @@ describe('KiaConnectPlatform', () => {
       'My Sorento Climate',
       'My Sorento Status',
       'My Sorento Battery',
+      'My Sorento Mileage',
     ]);
   });
 

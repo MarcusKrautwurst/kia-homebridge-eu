@@ -45,6 +45,7 @@ interface BlVehicle {
     unit?: 'C' | 'F';
   }): Promise<string>;
   stop(): Promise<string>;
+  odometer(): Promise<{ value: number; unit: number } | null>;
 }
 
 type BlueLinkyCtorConfig = ConstructorParameters<typeof BlueLinky>[0];
@@ -191,6 +192,7 @@ export class KiaApiClient {
   private client?: BlueLinky;
   private readonly vehicles = new Map<string, BlVehicle>();
   private summaries: VehicleSummary[] = [];
+  private lastOdometer: number | null = null;
 
   constructor(
     private readonly log: Logger,
@@ -262,8 +264,24 @@ export class KiaApiClient {
     return this.withRelogin(async () => {
       const vehicle = this.requireVehicle(vehicleKey);
       const raw = await vehicle.status({ refresh, parsed: false });
-      return mapRawStatus(raw as EuRawStatus | null);
+      const state = mapRawStatus(raw as EuRawStatus | null);
+      // Odometer comes from a separate, infrequent call; fold the cached value in.
+      state.odometer = this.lastOdometer;
+      return state;
     }, 'fetch vehicle status');
+  }
+
+  /**
+   * Fetches the odometer (km for EU) and caches it. Mileage changes slowly and
+   * each call counts against the EU rate limit, so callers should do this rarely
+   * (e.g. at startup and roughly daily), not on every poll.
+   */
+  async refreshOdometer(vehicleKey: string): Promise<number | null> {
+    return this.withRelogin(async () => {
+      const result = await this.requireVehicle(vehicleKey).odometer();
+      this.lastOdometer = result && typeof result.value === 'number' ? result.value : null;
+      return this.lastOdometer;
+    }, 'fetch odometer');
   }
 
   async lockDoors(vehicleKey: string): Promise<string> {

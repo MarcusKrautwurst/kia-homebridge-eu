@@ -20,6 +20,7 @@ import {
   BodyAccessory,
   ClimateAccessory,
   LockAccessory,
+  MileageAccessory,
   StatusAccessory,
   type VehicleAccessoryInstance,
 } from './vehicle-accessory.js';
@@ -39,6 +40,8 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
   private apiClient!: KiaApiClient;
   private pollTimer?: ReturnType<typeof setInterval>;
   private activeAccessories: VehicleAccessoryInstance[] = [];
+  private pollsSinceOdometer = 0;
+  private odometerRefreshEveryPolls = 0;
 
   constructor(
     public readonly log: Logger,
@@ -124,6 +127,8 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
 
     this.removeCachedAccessories(keepUuids);
 
+    await this.refreshOdometerQuietly(vehicle.key);
+
     try {
       const state = await this.apiClient.getVehicleStatus(vehicle.key);
       this.updateActiveAccessories(state);
@@ -167,6 +172,8 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
       return new BodyAccessory(this, accessory, vehicle);
     case 'battery':
       return new BatteryAccessory(this, accessory, vehicle);
+    case 'mileage':
+      return new MileageAccessory(this, accessory, vehicle);
     }
   }
 
@@ -182,6 +189,8 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
       return 'Body';
     case 'battery':
       return 'Battery';
+    case 'mileage':
+      return 'Mileage';
     }
   }
 
@@ -219,6 +228,10 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
     );
     const intervalMs = intervalMinutes * 60 * 1000;
 
+    // Refresh the (slowly changing) odometer roughly once a day to limit API calls.
+    this.odometerRefreshEveryPolls = Math.max(1, Math.round((24 * 60) / intervalMinutes));
+    this.pollsSinceOdometer = 0;
+
     this.log.info(`Starting polling every ${intervalMinutes} minutes`);
 
     this.pollTimer = setInterval(() => {
@@ -239,8 +252,22 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
     }
   }
 
+  private async refreshOdometerQuietly(vehicleKey: string): Promise<void> {
+    try {
+      await this.apiClient.refreshOdometer(vehicleKey);
+    } catch (e) {
+      this.log.debug('Odometer refresh failed:', e);
+    }
+  }
+
   private async pollVehicleState(vehicleKey: string): Promise<void> {
     try {
+      this.pollsSinceOdometer++;
+      if (this.odometerRefreshEveryPolls > 0 && this.pollsSinceOdometer >= this.odometerRefreshEveryPolls) {
+        this.pollsSinceOdometer = 0;
+        await this.refreshOdometerQuietly(vehicleKey);
+      }
+
       // Use cached server status during polling so we don't wake the car and
       // drain its 12V battery on every interval.
       const state = await this.apiClient.getVehicleStatus(vehicleKey);

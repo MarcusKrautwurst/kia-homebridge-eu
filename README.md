@@ -19,6 +19,7 @@ Kia API client was replaced with `bluelinky` so it speaks to Kia's European serv
 - EV battery charge level and charging state (or 12V battery for combustion cars)
 - Low fuel warning, engine/ignition state, tire pressure warning
 - Door, window, hood, and trunk sensors
+- Odometer / mileage (shown as a light-sensor reading — see notes)
 
 ## Requirements
 
@@ -59,6 +60,7 @@ Configure through the Homebridge UI, or add a platform block to `config.json`:
   "showStatus": true,
   "showBody": false,
   "showBattery": true,
+  "showMileage": true,
   "climateTemperature": 21
 }
 ```
@@ -76,6 +78,7 @@ Configure through the Homebridge UI, or add a platform block to `config.json`:
 | `showStatus` | Show low-fuel, engine, and tire-warning sensors |
 | `showBody` | Show door, window, hood, and trunk sensors |
 | `showBattery` | Show the battery service (EV charge, or 12V) |
+| `showMileage` | Show the odometer (as a light-sensor reading) |
 | `climateTemperature` | Remote climate target temperature in °C (14–30) |
 
 ## HomeKit services
@@ -88,6 +91,11 @@ Up to five accessories are created per vehicle:
   `LeakSensor` (tire pressure)
 - `${vehicleName} Body` — `ContactSensor` services for doors, windows, hood, trunk
 - `${vehicleName} Battery` — `Battery` (EV charge + charging state, or 12V battery)
+- `${vehicleName} Mileage` — `LightSensor` whose lux reading is the odometer in km
+
+> ℹ️ HomeKit has no odometer field, so mileage is exposed through a light sensor — the
+> "lux" value is your mileage in km (e.g. 12500). It's refreshed about once a day and
+> caps at 100,000 (a HomeKit light-sensor limit). Disable it with `showMileage: false`.
 
 ## EU API limitations
 

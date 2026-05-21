@@ -56,6 +56,7 @@ function fakeVehicle(overrides: Record<string, unknown> = {}) {
     unlock: vi.fn().mockResolvedValue('unlocked'),
     start: vi.fn().mockResolvedValue('started'),
     stop: vi.fn().mockResolvedValue('stopped'),
+    odometer: vi.fn().mockResolvedValue(overrides.odometer ?? { value: 12345, unit: 1 }),
   };
 }
 
@@ -216,6 +217,19 @@ describe('vehicle access', () => {
     await client.login();
 
     await expect(client.getVehicleStatus('NOPE')).rejects.toBeInstanceOf(KiaApiError);
+  });
+
+  it('caches the odometer and folds it into subsequent status', async () => {
+    const vehicle = fakeVehicle({ vin: 'VIN1', odometer: { value: 54321, unit: 1 } });
+    h.readyVehicles = [vehicle];
+    const client = makeClient();
+    await client.login();
+
+    await expect(client.refreshOdometer('VIN1')).resolves.toBe(54321);
+
+    const state = await client.getVehicleStatus('VIN1');
+    expect(state.odometer).toBe(54321);
+    expect(vehicle.odometer).toHaveBeenCalledOnce();
   });
 });
 

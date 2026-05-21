@@ -88,6 +88,12 @@
         "default": true,
         "description": "EV high-voltage battery charge and charging state where available, otherwise the 12V battery."
       },
+      "showMileage": {
+        "title": "Show Mileage",
+        "type": "boolean",
+        "default": true,
+        "description": "Odometer (km). HomeKit has no mileage field, so it is shown as a light sensor reading (e.g. '12500'). Refreshed about once a day."
+      },
       "climateTemperature": {
         "title": "Remote Climate Temperature (°C)",
         "type": "integer",
@@ -121,7 +127,8 @@
         "showClimate",
         "showStatus",
         "showBody",
-        "showBattery"
+        "showBattery",
+        "showMileage"
       ]
     },
     { "key": "climateTemperature" }

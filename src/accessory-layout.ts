@@ -1,6 +1,6 @@
 import type { KiaConnectConfig } from './kia/types.js';
 
-export type AccessoryCategory = 'lock' | 'climate' | 'status' | 'body' | 'battery';
+export type AccessoryCategory = 'lock' | 'climate' | 'status' | 'body' | 'battery' | 'mileage';
 
 export const ACCESSORY_CATEGORIES: readonly AccessoryCategory[] = [
   'lock',
@@ -8,6 +8,7 @@ export const ACCESSORY_CATEGORIES: readonly AccessoryCategory[] = [
   'status',
   'body',
   'battery',
+  'mileage',
 ];
 
 export interface AccessoryPresentation {
@@ -17,6 +18,7 @@ export interface AccessoryPresentation {
   showStatus: boolean;
   showBody: boolean;
   showBattery: boolean;
+  showMileage: boolean;
 }
 
 export function resolveAccessoryPresentation(config: KiaConnectConfig): AccessoryPresentation {
@@ -25,6 +27,7 @@ export function resolveAccessoryPresentation(config: KiaConnectConfig): Accessor
   const showStatus = config.showStatus ?? true;
   const showBody = config.showBody ?? false;
   const showBattery = config.showBattery ?? true;
+  const showMileage = config.showMileage ?? true;
 
   return {
     enabledCategories: ACCESSORY_CATEGORIES.filter((category) => {
@@ -39,6 +42,8 @@ export function resolveAccessoryPresentation(config: KiaConnectConfig): Accessor
         return showBody;
       case 'battery':
         return showBattery;
+      case 'mileage':
+        return showMileage;
       }
     }),
     showLock,
@@ -46,5 +51,6 @@ export function resolveAccessoryPresentation(config: KiaConnectConfig): Accessor
     showStatus,
     showBody,
     showBattery,
+    showMileage,
   };
 }

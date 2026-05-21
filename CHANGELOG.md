@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.1.0 - 2026-05-21
+### Added
+- Odometer / mileage support. HomeKit has no mileage field, so it's surfaced as a
+  `LightSensor` whose reading is the mileage in km (e.g. 12500), shown as a
+  "${vehicleName} Mileage" accessory. Toggle with `showMileage` (default on).
+  Refreshed roughly once a day to limit API calls; caps at 100,000.
+
 ## 1.0.6 - 2026-05-21
 ### Added
 - `CHANGELOG.md` and GitHub Releases so release notes appear in the Homebridge UI

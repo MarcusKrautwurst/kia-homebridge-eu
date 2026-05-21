@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.2.0 - 2026-05-21
+### Changed
+- Body sensors (doors, windows, hood, trunk) now show **by default** (`showBody`
+  defaults to `true`). Set `showBody: false` to hide them.
+
 ## 1.1.1 - 2026-05-21
 ### Fixed
 - Password and PIN fields are now actually masked in the config UI. The form

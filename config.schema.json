@@ -79,8 +79,8 @@
       "showBody": {
         "title": "Show Body Sensors",
         "type": "boolean",
-        "default": false,
-        "description": "Expose door, window, hood, and trunk sensors."
+        "default": true,
+        "description": "Expose door, window, hood, and trunk contact sensors."
       },
       "showBattery": {
         "title": "Show Battery",

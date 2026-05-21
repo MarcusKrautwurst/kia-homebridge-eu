@@ -58,7 +58,7 @@ Configure through the Homebridge UI, or add a platform block to `config.json`:
   "showLock": true,
   "showClimate": true,
   "showStatus": true,
-  "showBody": false,
+  "showBody": true,
   "showBattery": true,
   "showMileage": true,
   "climateTemperature": 21

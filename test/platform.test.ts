@@ -307,6 +307,7 @@ describe('KiaConnectPlatform', () => {
       'My Sorento Lock',
       'My Sorento Climate',
       'My Sorento Status',
+      'My Sorento Body',
       'My Sorento Battery',
       'My Sorento Mileage',
     ]);

@@ -52,7 +52,7 @@ describe('config.schema.json', () => {
     expect(properties.showLock.default).toBe(true);
     expect(properties.showClimate.default).toBe(true);
     expect(properties.showStatus.default).toBe(true);
-    expect(properties.showBody.default).toBe(false);
+    expect(properties.showBody.default).toBe(true);
     expect(properties.showBattery.default).toBe(true);
   });
 

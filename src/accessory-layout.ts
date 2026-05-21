@@ -25,7 +25,7 @@ export function resolveAccessoryPresentation(config: KiaConnectConfig): Accessor
   const showLock = config.showLock ?? true;
   const showClimate = config.showClimate ?? true;
   const showStatus = config.showStatus ?? true;
-  const showBody = config.showBody ?? false;
+  const showBody = config.showBody ?? true;
   const showBattery = config.showBattery ?? true;
   const showMileage = config.showMileage ?? true;
 

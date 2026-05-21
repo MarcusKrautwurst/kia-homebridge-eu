@@ -259,42 +259,29 @@ export class KiaApiClient {
   }
 
   async getVehicleStatus(vehicleKey: string, refresh = false): Promise<VehicleState> {
-    const vehicle = this.requireVehicle(vehicleKey);
-    try {
+    return this.withRelogin(async () => {
+      const vehicle = this.requireVehicle(vehicleKey);
       const raw = await vehicle.status({ refresh, parsed: false });
       return mapRawStatus(raw as EuRawStatus | null);
-    } catch (error) {
-      throw this.wrapError(error, 'fetch vehicle status');
-    }
+    }, 'fetch vehicle status');
   }
 
   async lockDoors(vehicleKey: string): Promise<string> {
-    const vehicle = this.requireVehicle(vehicleKey);
-    try {
-      return (await vehicle.lock()) ?? '';
-    } catch (error) {
-      throw this.wrapError(error, 'lock doors');
-    }
+    return this.withRelogin(async () => (await this.requireVehicle(vehicleKey).lock()) ?? '', 'lock doors');
   }
 
   async unlockDoors(vehicleKey: string): Promise<string> {
-    const vehicle = this.requireVehicle(vehicleKey);
-    try {
-      return (await vehicle.unlock()) ?? '';
-    } catch (error) {
-      throw this.wrapError(error, 'unlock doors');
-    }
+    return this.withRelogin(async () => (await this.requireVehicle(vehicleKey).unlock()) ?? '', 'unlock doors');
   }
 
   async startClimate(vehicleKey: string, options?: ClimateOptions): Promise<string> {
-    const vehicle = this.requireVehicle(vehicleKey);
     const temperature = clamp(
       options?.temperature ?? DEFAULT_CLIMATE_TEMP_C,
       MIN_CLIMATE_TEMP_C,
       MAX_CLIMATE_TEMP_C,
     );
-    try {
-      const result = await vehicle.start({
+    return this.withRelogin(async () => {
+      const result = await this.requireVehicle(vehicleKey).start({
         hvac: true,
         duration: CLIMATE_DURATION_MINUTES,
         temperature,
@@ -303,18 +290,11 @@ export class KiaApiClient {
         unit: 'C',
       });
       return result ?? '';
-    } catch (error) {
-      throw this.wrapError(error, 'start climate');
-    }
+    }, 'start climate');
   }
 
   async stopClimate(vehicleKey: string): Promise<string> {
-    const vehicle = this.requireVehicle(vehicleKey);
-    try {
-      return (await vehicle.stop()) ?? '';
-    } catch (error) {
-      throw this.wrapError(error, 'stop climate');
-    }
+    return this.withRelogin(async () => (await this.requireVehicle(vehicleKey).stop()) ?? '', 'stop climate');
   }
 
   /**
@@ -323,6 +303,47 @@ export class KiaApiClient {
    */
   async waitForAction(_vehicleKey: string, _actionId: string): Promise<boolean> {
     return true;
+  }
+
+  /**
+   * Runs an operation, transparently re-authenticating once if it fails with a
+   * session/device error (e.g. the EU "Invalid deviceId" after a token expires).
+   * The operation must re-resolve its vehicle on each call, since re-login
+   * rebuilds the vehicle objects. PIN failures are never retried — that would
+   * waste limited PIN attempts.
+   */
+  private async withRelogin<T>(operation: () => Promise<T>, action: string): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      const message = errorMessage(error);
+      if (!this.isRecoverableSessionError(message)) {
+        throw this.wrapError(error, action);
+      }
+
+      this.log.warn(`Kia session expired while trying to ${action}; re-authenticating...`);
+      const result = await this.login();
+      if (!result.success) {
+        throw new AuthenticationError(`Re-authentication failed: ${result.error ?? 'unknown error'}`);
+      }
+
+      try {
+        return await operation();
+      } catch (retryError) {
+        throw this.wrapError(retryError, action);
+      }
+    }
+  }
+
+  private isRecoverableSessionError(message: string): boolean {
+    const lower = message.toLowerCase();
+    // Never re-login for PIN problems — re-login won't fix them and each retry
+    // burns a limited PIN attempt.
+    if (lower.includes('4003') || (lower.includes('pin') && lower.includes('invalid'))) {
+      return false;
+    }
+    return ['deviceid', '4002', 'token', 'session', 'unauthorized', '401', 'expired']
+      .some((hint) => lower.includes(hint));
   }
 
   private indexVehicles(vehicles: BlVehicle[]): void {

@@ -245,13 +245,45 @@ describe('commands', () => {
     );
   });
 
-  it('wraps auth-looking failures as AuthenticationError', async () => {
+  it('wraps non-session failures as KiaApiError without retrying', async () => {
     const vehicle = fakeVehicle({ vin: 'VIN1' });
-    vehicle.status.mockRejectedValueOnce(new Error('control token expired'));
+    vehicle.status.mockReset();
+    vehicle.status.mockRejectedValue(new Error('something unexpected broke'));
+    h.readyVehicles = [vehicle];
+    const client = makeClient();
+    await client.login();
+
+    await expect(client.getVehicleStatus('VIN1')).rejects.toBeInstanceOf(KiaApiError);
+    expect(vehicle.status).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('session recovery', () => {
+  it('re-authenticates and retries once on an Invalid deviceId error', async () => {
+    const vehicle = fakeVehicle({ vin: 'VIN1' });
+    vehicle.status.mockReset();
+    vehicle.status
+      .mockRejectedValueOnce(new Error('[400] Bad Request ... "resCode":"4002","resMsg":"Invalid request body - Invalid deviceId."'))
+      .mockResolvedValue({ doorLock: true });
+    h.readyVehicles = [vehicle];
+    const client = makeClient();
+    await client.login();
+
+    const state = await client.getVehicleStatus('VIN1');
+
+    expect(state.locked).toBe(true);
+    expect(vehicle.status).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not re-login or retry on a PIN error (avoids burning attempts)', async () => {
+    const vehicle = fakeVehicle({ vin: 'VIN1' });
+    vehicle.status.mockReset();
+    vehicle.status.mockRejectedValue(new Error('[400] resCode 4003 user/pin Invalid values'));
     h.readyVehicles = [vehicle];
     const client = makeClient();
     await client.login();
 
     await expect(client.getVehicleStatus('VIN1')).rejects.toBeInstanceOf(AuthenticationError);
+    expect(vehicle.status).toHaveBeenCalledTimes(1);
   });
 });

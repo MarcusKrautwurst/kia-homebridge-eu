@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   BatteryAccessory,
-  BodyAccessory,
+  BODY_PARTS,
   ClimateAccessory,
+  DoorWindowAccessory,
   LockAccessory,
   MileageAccessory,
   StatusAccessory,
@@ -146,6 +147,7 @@ function makePlatform() {
           SERVICE_COMMUNICATION_FAILURE: -70402,
         },
         HapStatusError: class extends Error {},
+        Categories: { DOOR: 12, WINDOW: 13 },
       },
     },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -230,10 +232,31 @@ describe('VehicleAccessory', () => {
     expect(statusAccessory.getServiceById('HumiditySensor', 'fuel')).toBeUndefined();
     expect(statusAccessory.getServiceById('TemperatureSensor', 'temperature')).toBeUndefined();
 
-    const bodyAccessory = new FakeAccessory();
-    new BodyAccessory(platform, bodyAccessory as never, vehicle);
-    expect(bodyAccessory.getServiceById('ContactSensor', 'door-fl')).toBeDefined();
-    expect(bodyAccessory.getServiceById('LeakSensor', 'fuel-low')).toBeUndefined();
+    // Body sensors are now individual accessories, not services on the status group.
+    expect(statusAccessory.getService('ContactSensor')).toBeUndefined();
+  });
+
+  it('exposes each body sensor as its own categorised door/window accessory', () => {
+    const platform = makePlatform();
+    const doorPart = BODY_PARTS.find((p) => p.subtype === 'door-fl')!;
+    const windowPart = BODY_PARTS.find((p) => p.subtype === 'window-fl')!;
+
+    const doorHost = new FakeAccessory();
+    const windowHost = new FakeAccessory();
+    const doorInst = new DoorWindowAccessory(platform, doorHost as never, vehicle, doorPart);
+    new DoorWindowAccessory(platform, windowHost as never, vehicle, windowPart);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((doorHost as any).category).toBe(12);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((windowHost as any).category).toBe(13);
+
+    const contact = doorHost.getService('ContactSensor');
+    expect(contact?.name).toBe('Front Left Door');
+
+    doorInst.updateState(makeState({ frontLeftDoorOpen: true }));
+    expect(contact?.updates.get(platform.Characteristic.ContactSensorState))
+      .toBe(platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
   });
 
   it('names bundled services with ConfiguredName so Apple Home shows per-service names', () => {

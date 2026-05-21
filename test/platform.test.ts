@@ -122,6 +122,7 @@ function makeApi() {
       uuid: {
         generate: vi.fn((value: string) => `uuid-${value}`),
       },
+      Categories: { DOOR: 12, WINDOW: 13 },
     },
     user: {
       storagePath: () => '/tmp/kia-platform-test',
@@ -307,7 +308,16 @@ describe('KiaConnectPlatform', () => {
       'My Sorento Lock',
       'My Sorento Climate',
       'My Sorento Status',
-      'My Sorento Body',
+      'My Sorento Front Left Door',
+      'My Sorento Front Right Door',
+      'My Sorento Rear Left Door',
+      'My Sorento Rear Right Door',
+      'My Sorento Hood',
+      'My Sorento Trunk',
+      'My Sorento Front Left Window',
+      'My Sorento Front Right Window',
+      'My Sorento Rear Left Window',
+      'My Sorento Rear Right Window',
       'My Sorento Battery',
       'My Sorento Mileage',
     ]);

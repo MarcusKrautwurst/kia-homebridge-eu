@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 1.3.0 - 2026-05-21
+### Changed
+- Each body sensor (door, window, hood, trunk) is now its own accessory with a
+  HomeKit **Door** or **Window** category, instead of one grouped "Body" accessory
+  of generic contact sensors. They now show with the correct door/window type/icon.
+  The old "${vehicleName} Body" accessory is replaced automatically on upgrade.
+
 ## 1.2.0 - 2026-05-21
 ### Changed
 - Body sensors (doors, windows, hood, trunk) now show **by default** (`showBody`

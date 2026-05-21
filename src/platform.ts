@@ -17,8 +17,9 @@ import {
 } from './accessory-layout.js';
 import {
   BatteryAccessory,
-  BodyAccessory,
+  BODY_PARTS,
   ClimateAccessory,
+  DoorWindowAccessory,
   LockAccessory,
   MileageAccessory,
   StatusAccessory,
@@ -149,15 +150,36 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
     uuid: string;
     create: (accessory: PlatformAccessory) => VehicleAccessoryInstance;
   }> {
-    return presentation.enabledCategories.map((category) => ({
-      name: `${vehicle.name} ${this.getCategorySuffix(category)}`,
-      uuid: this.api.hap.uuid.generate(`${accessoryIdentity}:${category}`),
-      create: (accessory: PlatformAccessory) => this.createGroupedAccessory(category, accessory, vehicle),
-    }));
+    const definitions: Array<{
+      name: string;
+      uuid: string;
+      create: (accessory: PlatformAccessory) => VehicleAccessoryInstance;
+    }> = [];
+
+    for (const category of presentation.enabledCategories) {
+      if (category === 'body') {
+        // Body sensors are individual accessories so each can be a Door or Window.
+        for (const part of BODY_PARTS) {
+          definitions.push({
+            name: `${vehicle.name} ${part.name}`,
+            uuid: this.api.hap.uuid.generate(`${accessoryIdentity}:body:${part.subtype}`),
+            create: (accessory: PlatformAccessory) => new DoorWindowAccessory(this, accessory, vehicle, part),
+          });
+        }
+        continue;
+      }
+      definitions.push({
+        name: `${vehicle.name} ${this.getCategorySuffix(category)}`,
+        uuid: this.api.hap.uuid.generate(`${accessoryIdentity}:${category}`),
+        create: (accessory: PlatformAccessory) => this.createGroupedAccessory(category, accessory, vehicle),
+      });
+    }
+
+    return definitions;
   }
 
   private createGroupedAccessory(
-    category: AccessoryCategory,
+    category: Exclude<AccessoryCategory, 'body'>,
     accessory: PlatformAccessory,
     vehicle: { name: string; key: string; id: string; vin: string; model: string },
   ): VehicleAccessoryInstance {
@@ -168,8 +190,6 @@ export class KiaConnectPlatform implements DynamicPlatformPlugin {
       return new ClimateAccessory(this, accessory, this.apiClient, vehicle.key, vehicle, this.kiaConfig.climateTemperature);
     case 'status':
       return new StatusAccessory(this, accessory, vehicle);
-    case 'body':
-      return new BodyAccessory(this, accessory, vehicle);
     case 'battery':
       return new BatteryAccessory(this, accessory, vehicle);
     case 'mileage':

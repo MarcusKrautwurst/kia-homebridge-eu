@@ -11,9 +11,7 @@ import type { AccessoryCategory } from './accessory-layout.js';
 import { DEFAULT_CLIMATE_TEMP_C, LOW_BATTERY_THRESHOLD } from './settings.js';
 
 type CommandKey = 'lock' | 'climate';
-type ServiceKey = CommandKey | 'fuel-low' | 'engine'
-  | 'door-fl' | 'door-fr' | 'door-rl' | 'door-rr' | 'hood' | 'trunk'
-  | 'window-fl' | 'window-fr' | 'window-rl' | 'window-rr' | 'tire' | 'battery' | 'mileage';
+type ServiceKey = CommandKey | 'fuel-low' | 'engine' | 'tire' | 'battery' | 'mileage';
 
 // HomeKit's ambient light level (used as a stand-in to display the odometer
 // number, since HomeKit has no mileage characteristic) is bounded to this range.
@@ -35,7 +33,7 @@ const CATEGORY_SERVICE_KEYS: Record<AccessoryCategory, readonly ServiceKey[]> = 
   lock: ['lock'],
   climate: ['climate'],
   status: ['fuel-low', 'engine', 'tire'],
-  body: ['door-fl', 'door-fr', 'door-rl', 'door-rr', 'hood', 'trunk', 'window-fl', 'window-fr', 'window-rl', 'window-rr'],
+  body: [], // Body sensors are individual accessories (see BODY_PARTS), not grouped services.
   battery: ['battery'],
   mileage: ['mileage'],
 };
@@ -44,17 +42,26 @@ type BooleanStateKey = {
   [K in keyof VehicleState]: VehicleState[K] extends boolean ? K : never;
 }[keyof VehicleState];
 
-const CONTACT_SENSOR_MAP: readonly [ServiceKey, BooleanStateKey][] = [
-  ['door-fl', 'frontLeftDoorOpen'],
-  ['door-fr', 'frontRightDoorOpen'],
-  ['door-rl', 'rearLeftDoorOpen'],
-  ['door-rr', 'rearRightDoorOpen'],
-  ['hood', 'hoodOpen'],
-  ['trunk', 'trunkOpen'],
-  ['window-fl', 'frontLeftWindowOpen'],
-  ['window-fr', 'frontRightWindowOpen'],
-  ['window-rl', 'rearLeftWindowOpen'],
-  ['window-rr', 'rearRightWindowOpen'],
+export interface BodyPart {
+  subtype: string;
+  name: string;
+  stateKey: BooleanStateKey;
+  kind: 'door' | 'window';
+}
+
+// Each body sensor is its own accessory so HomeKit can categorise it as a door or
+// window (the HomeKit category is per-accessory, not per-service).
+export const BODY_PARTS: readonly BodyPart[] = [
+  { subtype: 'door-fl', name: 'Front Left Door', stateKey: 'frontLeftDoorOpen', kind: 'door' },
+  { subtype: 'door-fr', name: 'Front Right Door', stateKey: 'frontRightDoorOpen', kind: 'door' },
+  { subtype: 'door-rl', name: 'Rear Left Door', stateKey: 'rearLeftDoorOpen', kind: 'door' },
+  { subtype: 'door-rr', name: 'Rear Right Door', stateKey: 'rearRightDoorOpen', kind: 'door' },
+  { subtype: 'hood', name: 'Hood', stateKey: 'hoodOpen', kind: 'door' },
+  { subtype: 'trunk', name: 'Trunk', stateKey: 'trunkOpen', kind: 'door' },
+  { subtype: 'window-fl', name: 'Front Left Window', stateKey: 'frontLeftWindowOpen', kind: 'window' },
+  { subtype: 'window-fr', name: 'Front Right Window', stateKey: 'frontRightWindowOpen', kind: 'window' },
+  { subtype: 'window-rl', name: 'Rear Left Window', stateKey: 'rearLeftWindowOpen', kind: 'window' },
+  { subtype: 'window-rr', name: 'Rear Right Window', stateKey: 'rearRightWindowOpen', kind: 'window' },
 ];
 
 abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
@@ -120,25 +127,6 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       this.services.set('fuel-low', this.getOrAddService(Service.LeakSensor, 'Low Fuel Warning', 'fuel-low'));
       this.services.set('engine', this.getOrAddService(Service.OccupancySensor, 'Engine Running', 'engine'));
       this.services.set('tire', this.getOrAddService(Service.LeakSensor, 'Tire Pressure Warning', 'tire'));
-    }
-
-    if (this.categories.has('body')) {
-      const bodySensors: [string, ServiceKey][] = [
-        ['Front Left Door', 'door-fl'],
-        ['Front Right Door', 'door-fr'],
-        ['Rear Left Door', 'door-rl'],
-        ['Rear Right Door', 'door-rr'],
-        ['Hood', 'hood'],
-        ['Trunk', 'trunk'],
-        ['Front Left Window', 'window-fl'],
-        ['Front Right Window', 'window-fr'],
-        ['Rear Left Window', 'window-rl'],
-        ['Rear Right Window', 'window-rr'],
-      ];
-
-      for (const [name, subtype] of bodySensors) {
-        this.services.set(subtype, this.getOrAddService(Service.ContactSensor, name, subtype));
-      }
     }
 
     if (this.categories.has('battery')) {
@@ -227,10 +215,6 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
       );
     }
 
-    for (const [subtype, stateKey] of CONTACT_SENSOR_MAP) {
-      this.updateContactSensor(subtype, state[stateKey]);
-    }
-
     const tireService = this.services.get('tire');
     if (tireService) {
       tireService.updateCharacteristic(
@@ -269,19 +253,6 @@ abstract class ConfiguredAccessory implements VehicleAccessoryInstance {
     if (mileageService && state.odometer !== null) {
       const value = Math.min(Math.max(state.odometer, LIGHT_SENSOR_MIN), LIGHT_SENSOR_MAX);
       mileageService.updateCharacteristic(Characteristic.CurrentAmbientLightLevel, value);
-    }
-  }
-
-  private updateContactSensor(subtype: ServiceKey, isOpen: boolean): void {
-    const service = this.services.get(subtype);
-    if (service) {
-      const { Characteristic } = this.platform;
-      service.updateCharacteristic(
-        Characteristic.ContactSensorState,
-        isOpen
-          ? Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
-          : Characteristic.ContactSensorState.CONTACT_DETECTED,
-      );
     }
   }
 
@@ -450,15 +421,46 @@ export class StatusAccessory extends ConfiguredAccessory {
   }
 }
 
-export class BodyAccessory extends ConfiguredAccessory {
+/**
+ * A single door/window/hood/trunk contact sensor as its own accessory, so it can
+ * carry a HomeKit Door or Window category (which is per-accessory, not per-service).
+ */
+export class DoorWindowAccessory implements VehicleAccessoryInstance {
+  private readonly service: Service;
+
   constructor(
-    platform: KiaConnectPlatform,
+    private readonly platform: KiaConnectPlatform,
     accessory: PlatformAccessory,
     vehicle: VehicleSummary,
+    private readonly part: BodyPart,
   ) {
-    super(platform, accessory, vehicle, {
-      categories: ['body'],
-    });
+    const { Service, Characteristic, api } = this.platform;
+
+    accessory.category = part.kind === 'window'
+      ? api.hap.Categories.WINDOW
+      : api.hap.Categories.DOOR;
+
+    const infoService = accessory.getService(Service.AccessoryInformation) ??
+      accessory.addService(Service.AccessoryInformation);
+    infoService
+      .setCharacteristic(Characteristic.Manufacturer, 'Kia')
+      .setCharacteristic(Characteristic.Model, vehicle.model)
+      .setCharacteristic(Characteristic.SerialNumber, `${vehicle.vin}-${part.subtype}`);
+
+    this.service = accessory.getService(Service.ContactSensor) ??
+      accessory.addService(Service.ContactSensor, part.name);
+    this.service.setCharacteristic(Characteristic.Name, part.name);
+  }
+
+  updateState(state: VehicleState): void {
+    const { Characteristic } = this.platform;
+    const isOpen = state[this.part.stateKey];
+    this.service.updateCharacteristic(
+      Characteristic.ContactSensorState,
+      isOpen
+        ? Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
+        : Characteristic.ContactSensorState.CONTACT_DETECTED,
+    );
   }
 }
 

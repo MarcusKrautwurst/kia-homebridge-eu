@@ -89,7 +89,9 @@ Up to five accessories are created per vehicle:
 - `${vehicleName} Climate` — `Switch`
 - `${vehicleName} Status` — `LeakSensor` (low fuel), `OccupancySensor` (engine),
   `LeakSensor` (tire pressure)
-- `${vehicleName} Body` — `ContactSensor` services for doors, windows, hood, trunk
+- `${vehicleName} Front Left Door`, … — each door/window/hood/trunk is its own
+  `ContactSensor` accessory, categorised as a **Door** or **Window** in HomeKit
+  (so they show with the right type/icon)
 - `${vehicleName} Battery` — `Battery` (EV charge + charging state, or 12V battery)
 - `${vehicleName} Mileage` — `LightSensor` whose lux reading is the odometer in km
 
